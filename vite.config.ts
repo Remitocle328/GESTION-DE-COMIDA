@@ -6,10 +6,10 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
-  const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
 
   return {
-    base: isGitHubActions ? '/Gestion-de-Comida/' : (mode === 'production' ? './' : '/'),
+    // base relativa './' para que funcione en cualquier nombre de repositorio en GitHub Pages o Capacitor
+    base: './',
     plugins: [
       react(),
       tailwindcss(),
@@ -24,7 +24,7 @@ export default defineConfig(({mode}) => {
           'pwa-maskable-512x512.png',
         ],
         manifest: {
-          id: '/',
+          id: './',
           name: 'Gestor de Horarios y Comidas',
           short_name: 'HorariosApp',
           description: 'Aplicación para administrar horarios de estudiantes y control de comidas diarias.',
