@@ -1,5 +1,5 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Gestor de Horarios y Comidas",
   "short_name": "HorariosApp",
   "description": "Aplicación para administrar horarios de estudiantes y control de comidas diarias.",

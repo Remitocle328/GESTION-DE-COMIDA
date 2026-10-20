@@ -1,48 +1,11 @@
-import { STUDENTS_DATA, Student } from '../data';
+import { Student } from '../data';
 
 const STORAGE_KEY = 'pension_app_students_v3';
 const META_KEY = 'pension_app_storage_meta';
 
-// Initial enriched data with contact phones, roles and pension details
+// Retorna lista vacía para nueva instalación limpia
 export function getInitialEnrichedStudents(): Student[] {
-  const phoneMap: Record<string, string> = {
-    '1': '573024686505',
-    '2': '573226279642',
-    '3': '573009841994',
-    '4': '573235934240',
-    '5': '573205191599',
-    '6': '573202712871',
-    '7': '573046755193',
-    '8': '573243878879',
-    '9': '573052622929'
-  };
-
-  const pensionMap: Record<string, { status: 'paid' | 'active' | 'pending'; price: number; plan: 'completa' | 'solo_almuerzo' | 'desayuno_almuerzo' }> = {
-    '1': { status: 'paid', price: 230000, plan: 'desayuno_almuerzo' },
-    '2': { status: 'active', price: 180000, plan: 'solo_almuerzo' },
-    '3': { status: 'pending', price: 160000, plan: 'solo_almuerzo' },
-    '4': { status: 'paid', price: 250000, plan: 'desayuno_almuerzo' },
-    '5': { status: 'active', price: 220000, plan: 'desayuno_almuerzo' },
-    '6': { status: 'paid', price: 280000, plan: 'completa' },
-    '7': { status: 'active', price: 170000, plan: 'solo_almuerzo' },
-    '8': { status: 'pending', price: 180000, plan: 'solo_almuerzo' },
-    '9': { status: 'paid', price: 290000, plan: 'completa' }
-  };
-
-  return STUDENTS_DATA.map(st => {
-    const pen = pensionMap[st.id] || { status: 'active', price: 180000, plan: 'solo_almuerzo' };
-    return {
-      ...st,
-      phone: phoneMap[st.id] || '',
-      role: 'Estudiante',
-      pensionStatus: pen.status,
-      pensionPlan: pen.plan,
-      pensionPrice: pen.price,
-      pensionDueDate: '2026-11-05',
-      dinnerDays: st.id === '6' || st.id === '9' ? ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'] : [],
-      notes: ''
-    };
-  });
+  return [];
 }
 
 /**
@@ -58,22 +21,13 @@ export function loadStudentsFromStorage(): Student[] {
       }
     }
     
-    // Fallback: check legacy storage or initialize enriched default
-    const legacy = localStorage.getItem('app_students_v1');
-    if (legacy) {
-      const parsedLegacy = JSON.parse(legacy);
-      if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
-        saveStudentsToStorage(parsedLegacy);
-        return parsedLegacy;
-      }
-    }
-
-    const initial = getInitialEnrichedStudents();
+    // Si no hay datos guardados previamente, iniciar con lista vacía
+    const initial: Student[] = [];
     saveStudentsToStorage(initial);
     return initial;
   } catch (err) {
     console.error('Error loading students from device storage:', err);
-    return getInitialEnrichedStudents();
+    return [];
   }
 }
 
@@ -161,11 +115,17 @@ export function importDataFromJSON(jsonString: string): Student[] {
 }
 
 /**
- * Resets storage back to default initial state
+ * Resets storage back to default initial state (empty)
  */
 export function resetStorageToDefaults(): Student[] {
-  const fresh = getInitialEnrichedStudents();
+  const fresh: Student[] = [];
   saveStudentsToStorage(fresh);
+  try {
+    localStorage.removeItem('meal_attendance_daily_v1');
+    localStorage.removeItem('meal_status_v2');
+  } catch (e) {
+    console.error(e);
+  }
   return fresh;
 }
 
@@ -174,7 +134,7 @@ export function resetStorageToDefaults(): Student[] {
  */
 export function getStorageMemoryStats(): { count: number; sizeKB: number; lastSaved: string | null } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || '';
+    const raw = localStorage.getItem(STORAGE_KEY) || '[]';
     const metaRaw = localStorage.getItem(META_KEY);
     const meta = metaRaw ? JSON.parse(metaRaw) : null;
 

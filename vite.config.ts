@@ -6,9 +6,11 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  // Use relative base so assets load correctly on GitHub Pages regardless of repository name casing
+  const repoName = process.env.GITHUB_REPOSITORY ? `/${process.env.GITHUB_REPOSITORY.split('/')[1]}/` : './';
 
   return {
-    // base relativa './' para que funcione en cualquier nombre de repositorio en GitHub Pages o Capacitor
+    // Relative base allows deployment on any GitHub Pages repo (regardless of uppercase/lowercase), subfolders, or Capacitor mobile app
     base: './',
     plugins: [
       react(),

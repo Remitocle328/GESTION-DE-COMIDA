@@ -164,16 +164,16 @@ export const BackupModal: React.FC<BackupModalProps> = ({
           {/* Reset section */}
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
             {showResetConfirm ? (
-              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/50 space-y-2">
-                <p className="font-bold text-amber-800 dark:text-amber-300">
-                  ¿Restablecer datos a los 9 estudiantes originales?
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/50 space-y-2">
+                <p className="font-bold text-rose-800 dark:text-rose-300">
+                  ¿Deseas vaciar todos los registros y comenzar desde cero?
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={handleReset}
-                    className="px-3 py-1.5 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700"
+                    className="px-3 py-1.5 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700"
                   >
-                    Confirmar Restablecimiento
+                    Confirmar y Vaciar Todo
                   </button>
                   <button
                     onClick={() => setShowResetConfirm(false)}
@@ -186,10 +186,10 @@ export const BackupModal: React.FC<BackupModalProps> = ({
             ) : (
               <button
                 onClick={() => setShowResetConfirm(true)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold mx-auto"
+                className="flex items-center gap-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold mx-auto transition-colors"
               >
                 <RotateCcw size={13} />
-                <span>Restablecer datos iniciales de fábrica</span>
+                <span>Vaciar todos los datos (Empezar de cero)</span>
               </button>
             )}
           </div>

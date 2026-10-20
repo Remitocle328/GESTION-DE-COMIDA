@@ -583,7 +583,32 @@ export default function App() {
             {/* Diners Meal Attendance List */}
             <div className="space-y-2">
               <AnimatePresence mode="popLayout">
-                {displayedStudents.length === 0 ? (
+                {students.length === 0 ? (
+                  <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 space-y-4 shadow-xs">
+                    <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto">
+                      <Users size={28} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+                        Comienza agregando tus comensales
+                      </h3>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        Aún no tienes comensales registrados. Registra a las personas para controlar sus comidas diarias (desayunos, almuerzos y cenas).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStudentToEdit(null);
+                        setIsStudentModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition"
+                    >
+                      <Plus size={16} />
+                      <span>Registrar Primer Comensal</span>
+                    </button>
+                  </div>
+                ) : displayedStudents.length === 0 ? (
                   <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 space-y-2">
                     <Utensils size={32} className="mx-auto text-slate-300 dark:text-slate-700" />
                     <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
@@ -720,12 +745,38 @@ export default function App() {
 
             {/* List */}
             <div className="space-y-2.5">
-              {students
-                .filter(s =>
-                  s.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  (s.role && s.role.toLowerCase().includes(searchTerm.toLowerCase()))
-                )
-                .map(student => {
+              {students.length === 0 ? (
+                <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 space-y-4 shadow-xs">
+                  <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto">
+                    <Users size={28} />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+                      Directorio vacío
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      No hay comensales ni estudiantes registrados todavía. Presiona el botón para agregar al primer integrante.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStudentToEdit(null);
+                      setIsStudentModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition"
+                  >
+                    <Plus size={16} />
+                    <span>Registrar Nueva Persona</span>
+                  </button>
+                </div>
+              ) : (
+                students
+                  .filter(s =>
+                    s.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (s.role && s.role.toLowerCase().includes(searchTerm.toLowerCase()))
+                  )
+                  .map(student => {
                   return (
                     <div
                       key={student.id}
@@ -815,7 +866,18 @@ export default function App() {
                       )}
                     </div>
                   );
-                })}
+                })
+              )}
+
+              {students.length > 0 &&
+                students.filter(s =>
+                  s.student.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (s.role && s.role.toLowerCase().includes(searchTerm.toLowerCase()))
+                ).length === 0 && (
+                  <div className="text-center py-8 text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+                    No se encontraron comensales que coincidan con &ldquo;{searchTerm}&rdquo;.
+                  </div>
+                )}
             </div>
           </motion.div>
         )}
