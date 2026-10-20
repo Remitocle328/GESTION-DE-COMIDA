@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Body -->
+  <circle cx="64" cy="64" r="50" fill="#3B82F6" />
+  <!-- Face/Head -->
+  <path d="M64 14C36.3858 14 14 36.3858 14 64C14 91.6142 36.3858 114 64 114V14Z" fill="#6366F1" opacity="0.8" />
+  <!-- Eye -->
+  <circle cx="35" cy="55" r="4" fill="#1E293B" />
+  <!-- Mouth -->
+  <path d="M14 64C10 64 10 70 14 70" fill="none" stroke="#6366F1" stroke-width="4" stroke-linecap="round" />
+  <!-- Side Fin -->
+  <path d="M60 50 L80 64 L60 78 Z" fill="#FBBF24" />
+  <!-- Top Fin -->
+  <path d="M50 14 Q70 0 90 14 L80 30 Q65 20 50 30 Z" fill="#FBBF24" />
+  <!-- Bottom Fin -->
+  <path d="M50 114 Q70 128 90 114 L80 98 Q65 108 50 98 Z" fill="#FBBF24" />
+  <!-- Tail -->
+  <path d="M114 64 Q128 44 128 64 Q128 84 114 64" fill="#FBBF24" />
+  <path d="M114 64 L128 44 L128 84 Z" fill="#FBBF24" />
+</svg>

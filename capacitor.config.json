@@ -1,0 +1,6 @@
+{
+  "appId": "com.gestor.app",
+  "appName": "Gestor de Horarios y Comidas",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

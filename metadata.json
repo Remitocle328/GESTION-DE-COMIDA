@@ -1,0 +1,7 @@
+{
+  "name": "Remix Remix: Gestor de Horarios y Comidas",
+  "description": "Aplicación para administrar horarios de estudiantes y control de comidas diarias.",
+  "requestFramePermissions": [
+    "notifications"
+  ]
+}
