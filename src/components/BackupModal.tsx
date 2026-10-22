@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { X, HardDrive, Download, Upload, RotateCcw, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Student } from '../data';
 import { exportDataAsJSON, importDataFromJSON, resetStorageToDefaults, getStorageMemoryStats } from '../services/storage';
+import { ConfirmModal } from './ConfirmModal';
 
 interface BackupModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<Student[] | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const stats = getStorageMemoryStats();
@@ -44,11 +46,10 @@ export const BackupModal: React.FC<BackupModalProps> = ({
       try {
         const text = event.target?.result as string;
         const imported = importDataFromJSON(text);
-        onDataUpdated(imported);
-        setSuccessMessage(`Se restauraron exitosamente ${imported.length} personas en la memoria del teléfono.`);
-        setTimeout(() => setSuccessMessage(null), 4000);
+        // Ask for confirmation before overwriting
+        setPendingImport(imported);
       } catch (err: any) {
-        setErrorMessage('Error al importar archivo: ' + err.message);
+        setErrorMessage('Error al leer el archivo: ' + err.message);
         setTimeout(() => setErrorMessage(null), 5000);
       }
     };
@@ -56,6 +57,14 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+    onDataUpdated(pendingImport);
+    setSuccessMessage(`Se restauraron exitosamente ${pendingImport.length} personas en el dispositivo.`);
+    setPendingImport(null);
+    setTimeout(() => setSuccessMessage(null), 4000);
   };
 
   const handleReset = () => {
@@ -162,39 +171,40 @@ export const BackupModal: React.FC<BackupModalProps> = ({
           </div>
 
           {/* Reset section */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-            {showResetConfirm ? (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 rounded-xl border border-rose-200 dark:border-rose-900/50 space-y-2">
-                <p className="font-bold text-rose-800 dark:text-rose-300">
-                  ¿Deseas vaciar todos los registros y comenzar desde cero?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleReset}
-                    className="px-3 py-1.5 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700"
-                  >
-                    Confirmar y Vaciar Todo
-                  </button>
-                  <button
-                    onClick={() => setShowResetConfirm(false)}
-                    className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-bold"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                className="flex items-center gap-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 font-bold mx-auto transition-colors"
-              >
-                <RotateCcw size={13} />
-                <span>Vaciar todos los datos (Empezar de cero)</span>
-              </button>
-            )}
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(true)}
+              className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-bold mx-auto transition cursor-pointer"
+            >
+              <RotateCcw size={13} />
+              <span>Vaciar todos los datos (Empezar de cero)</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Confirmation to restore from file */}
+      <ConfirmModal
+        isOpen={!!pendingImport}
+        title="¿Restaurar copia de seguridad?"
+        message={pendingImport ? `Se reemplazarán los datos actuales por los ${pendingImport.length} comensales de la copia.` : ''}
+        confirmText="Sí, restaurar"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmImport}
+        onClose={() => setPendingImport(null)}
+      />
+
+      {/* Confirmation to wipe all data */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        title="¿Vaciar todos los datos?"
+        message="Se eliminarán todos los comensales y registros guardados en la memoria de este teléfono."
+        confirmText="Sí, vaciar"
+        cancelText="Cancelar"
+        onConfirm={handleReset}
+        onClose={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 };

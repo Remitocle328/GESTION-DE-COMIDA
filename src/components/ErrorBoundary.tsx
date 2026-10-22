@@ -9,17 +9,22 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  showConfirmReset: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-    errorInfo: null,
-  };
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      showConfirmReset: false,
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+    return { hasError: true, error, errorInfo: null, showConfirmReset: false };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -32,15 +37,13 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleResetData = () => {
-    if (window.confirm('¿Deseas restablecer los datos guardados en este dispositivo para solucionar el error?')) {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (e) {
-        console.error(e);
-      }
-      window.location.reload();
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.error(e);
     }
+    window.location.reload();
   };
 
   public render() {
@@ -66,24 +69,46 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={this.handleReload}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium rounded-xl text-sm transition-colors shadow-sm"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Recargar página
-              </button>
-              
-              <button
-                onClick={this.handleResetData}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-700 font-medium rounded-xl text-sm transition-colors"
-                title="Limpiar datos dañados en este navegador"
-              >
-                <Trash2 className="w-4 h-4" />
-                Restablecer
-              </button>
-            </div>
+            {this.state.showConfirmReset ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center space-y-3">
+                <p className="text-xs font-bold text-slate-800">
+                  ¿Restablecer datos guardados en este dispositivo?
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => this.setState({ showConfirmReset: false })}
+                    className="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={this.handleResetData}
+                    className="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg"
+                  >
+                    Sí, restablecer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={this.handleReload}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium rounded-xl text-sm transition-colors shadow-sm"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Recargar página
+                </button>
+                
+                <button
+                  onClick={() => this.setState({ showConfirmReset: true })}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-sm transition-colors cursor-pointer"
+                  title="Limpiar datos dañados en este navegador"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Restablecer
+                </button>
+              </div>
+            )}
           </div>
         </div>
       );

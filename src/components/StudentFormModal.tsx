@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Phone, Save, Trash2, AlertCircle, UtensilsCrossed, CheckSquare } from 'lucide-react';
+import { X, User, Save, Trash2, AlertCircle, CheckSquare } from 'lucide-react';
 import { Student, PersonRole } from '../data';
+import { ConfirmModal } from './ConfirmModal';
 
 interface StudentFormModalProps {
   isOpen: boolean;
@@ -154,8 +155,13 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <Phone size={13} className="text-emerald-500" /> WhatsApp / Teléfono
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <img
+                  src="/assets/aistudio/whatsapp-3_da26a587.svg"
+                  alt="WhatsApp"
+                  className="w-3.5 h-3.5 object-contain shrink-0"
+                />
+                <span>WhatsApp / Teléfono</span>
               </label>
               <input
                 type="tel"
@@ -170,8 +176,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
           {/* Atajos rápidos de comidas */}
           <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200/70 dark:border-slate-800 space-y-2.5">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-wider">
-              <UtensilsCrossed size={15} />
+            <div className="text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-wider">
               <span>Plantillas Rápidas de Comidas</span>
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
@@ -390,44 +395,13 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
           {/* Delete confirmation section if editing */}
           {isEditing && onDelete && (
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-              {showDeleteConfirm ? (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 rounded-xl border border-red-200 dark:border-red-900/50 space-y-2">
-                  <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-xs">
-                    <AlertCircle size={16} />
-                    <span>¿Eliminar a esta persona del teléfono?</span>
-                  </div>
-                  <p className="text-[11px] text-red-600 dark:text-red-400/80">
-                    Se borrarán sus comidas y datos guardados en la memoria.
-                  </p>
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onDelete(initialStudent.id);
-                        onClose();
-                      }}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition"
-                    >
-                      Sí, Eliminar Definitivamente
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-lg transition"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 hover:underline font-bold"
-                >
-                  <Trash2 size={14} /> Eliminar persona de la memoria local
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 hover:underline font-bold cursor-pointer"
+              >
+                <Trash2 size={14} /> Eliminar persona de la memoria local
+              </button>
             </div>
           )}
 
@@ -450,6 +424,23 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Confirmation modal before deleting */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title={initialStudent ? `¿Eliminar a ${initialStudent.student}?` : '¿Eliminar persona?'}
+        message="Se borrará definitivamente de la lista de comensales y de la memoria del teléfono."
+        confirmText="Sí, eliminar"
+        cancelText="Cancelar"
+        onConfirm={() => {
+          if (initialStudent && onDelete) {
+            onDelete(initialStudent.id);
+            setShowDeleteConfirm(false);
+            onClose();
+          }
+        }}
+        onClose={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 };

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Utensils,
-  Sun,
-  Moon,
   Users,
   CalendarCheck,
   Search,
@@ -12,7 +10,6 @@ import {
   AlertTriangle,
   Trash2,
   Edit3,
-  Phone,
   Plus,
   RotateCcw,
   Download,
@@ -29,6 +26,8 @@ import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { StudentFormModal } from './components/StudentFormModal';
 import { BackupModal } from './components/BackupModal';
+import { WhatsAppShareModal } from './components/WhatsAppShareModal';
+import { ConfirmModal } from './components/ConfirmModal';
 import {
   loadStudentsFromStorage,
   saveStudentsToStorage,
@@ -132,10 +131,40 @@ export default function App() {
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState<string>(() => {
+    try {
+      return localStorage.getItem('dining_whatsapp_group_link') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleSaveWhatsAppGroupLink = (link: string) => {
+    setWhatsappGroupLink(link);
+    try {
+      if (link) {
+        localStorage.setItem('dining_whatsapp_group_link', link);
+      } else {
+        localStorage.removeItem('dining_whatsapp_group_link');
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Safety confirmation dialogs for meals
   const [mealToUnmark, setMealToUnmark] = useState<{ student: Student; meal: MealType } | null>(null);
   const [showConfirmClearAllMeals, setShowConfirmClearAllMeals] = useState(false);
+  const [showConfirmMarkAllMeals, setShowConfirmMarkAllMeals] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(prev => (prev === msg ? null : prev));
+    }, 3200);
+  };
 
   // Active status for the selected date and meal
   const currentMealStatus = useMemo(() => {
@@ -240,29 +269,35 @@ export default function App() {
     setMealToUnmark(null);
   };
 
-  // Select all or clear all
+  // Select all or clear all with clean confirmation
   const handleSelectAllToggle = () => {
     const allDone = studentsAssignedToMeal.length > 0 && studentsAssignedToMeal.every(s => currentMealStatus[s.id]);
 
     if (allDone) {
       setShowConfirmClearAllMeals(true);
     } else {
-      setAttendanceRecords(prev => {
-        const dayRecord = prev[selectedDate] || { Desayuno: {}, Almuerzo: {}, Cena: {} };
-        const updatedMeal = { ...(dayRecord[currentMeal] || {}) };
-        studentsAssignedToMeal.forEach(s => {
-          updatedMeal[s.id] = true;
-        });
-
-        return {
-          ...prev,
-          [selectedDate]: {
-            ...dayRecord,
-            [currentMeal]: updatedMeal
-          }
-        };
-      });
+      setShowConfirmMarkAllMeals(true);
     }
+  };
+
+  const handleConfirmMarkAll = () => {
+    setAttendanceRecords(prev => {
+      const dayRecord = prev[selectedDate] || { Desayuno: {}, Almuerzo: {}, Cena: {} };
+      const updatedMeal = { ...(dayRecord[currentMeal] || {}) };
+      studentsAssignedToMeal.forEach(s => {
+        updatedMeal[s.id] = true;
+      });
+
+      return {
+        ...prev,
+        [selectedDate]: {
+          ...dayRecord,
+          [currentMeal]: updatedMeal
+        }
+      };
+    });
+    setShowConfirmMarkAllMeals(false);
+    showToast(`Comida registrada para todos en ${currentMeal}`);
   };
 
   const handleConfirmClearAll = () => {
@@ -318,35 +353,104 @@ export default function App() {
     setStudentToEdit(null);
   };
 
-  // Share WhatsApp report
-  const handleSendWhatsAppReport = () => {
+  // Helper to generate beautifully styled WhatsApp report
+  const generateWhatsAppReportText = () => {
     const dateFormatted = formatDateDisplay(selectedDate);
     const eatenList = studentsAssignedToMeal.filter(s => !!currentMealStatus[s.id]);
     const pendingList = studentsAssignedToMeal.filter(s => !currentMealStatus[s.id]);
 
-    let text = `*🍽️ REPORTE DE ASISTENCIA AL COMEDOR*\n`;
-    text += `*Jornada:* ${currentMeal.toUpperCase()}\n`;
-    text += `*Fecha:* ${dateFormatted}\n\n`;
-    text += `*Total Comensales:* ${studentsAssignedToMeal.length}\n`;
-    text += `*Ya Comieron:* ${eatenList.length} (${progressPercent}%)\n`;
-    text += `*Pendientes:* ${pendingList.length}\n\n`;
+    const total = studentsAssignedToMeal.length;
+    const eaten = eatenList.length;
+    const pending = pendingList.length;
+    const percent = total > 0 ? Math.round((eaten / total) * 100) : 0;
+
+    const now = new Date();
+    const timeFormatted = now.toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    const lines: string[] = [
+      `REPORTE DE ASISTENCIA AL COMEDOR`,
+      `Jornada: ${currentMeal.toUpperCase()}`,
+      `Fecha: ${dateFormatted}`,
+      `Hora: ${timeFormatted}`,
+      ``,
+      `Total asignados: ${total}`,
+      `Ya comieron: ${eaten} (${percent}%)`,
+      `Faltan por comer: ${pending} (${100 - percent}%)`,
+      ``,
+      `Ya comieron:`,
+      ``
+    ];
 
     if (eatenList.length > 0) {
-      text += `*YA COMIERON:*\n`;
-      eatenList.forEach(s => {
-        text += `• ${s.student}\n`;
+      eatenList.forEach((s) => {
+        const extraRole = s.role ? ` (${s.role})` : '';
+        lines.push(`${s.student}${extraRole}`);
       });
-      text += `\n`;
+    } else {
+      lines.push(`Ninguno registrado aún`);
     }
+
+    lines.push(``);
+    lines.push(`Faltan por comer:`);
+    lines.push(``);
 
     if (pendingList.length > 0) {
-      text += `*PENDIENTES:*\n`;
-      pendingList.forEach(s => {
-        text += `• ${s.student}\n`;
+      pendingList.forEach((s) => {
+        const extraRole = s.role ? ` (${s.role})` : '';
+        lines.push(`${s.student}${extraRole}`);
       });
+    } else if (total > 0) {
+      lines.push(`Todos los comensales han comido (${total}/${total})`);
     }
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    return lines.join('\r\n');
+  };
+
+  // Share WhatsApp report
+  const handleSendWhatsAppReport = async () => {
+    if (studentsAssignedToMeal.length === 0) {
+      showToast('No hay comensales asignados a este turno');
+      return;
+    }
+
+    const reportText = generateWhatsAppReportText();
+
+    // Silently copy to clipboard so the user always has a pristine backup ready to paste
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(reportText).catch(() => {});
+    }
+
+    // On mobile devices, try native share API first to preserve rich formatting and newlines flawlessly
+    if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+      try {
+        await navigator.share({
+          title: `Reporte ${currentMeal} - ${formatDateDisplay(selectedDate)}`,
+          text: reportText,
+        });
+        showToast('Reporte compartido con éxito');
+        return;
+      } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+
+    // Direct WhatsApp Web / Mobile URL using api.whatsapp.com with CRLF encoding
+    const encoded = encodeURIComponent(reportText);
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encoded}`;
+
+    const link = document.createElement('a');
+    link.href = whatsappUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('Reporte preparado y copiado al portapapeles');
   };
 
   // Quick Date Setters
@@ -459,12 +563,7 @@ export default function App() {
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-800/50'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5">
-                      {meal === 'Desayuno' && <Sun size={15} />}
-                      {meal === 'Almuerzo' && <Utensils size={15} />}
-                      {meal === 'Cena' && <Moon size={15} />}
-                      <span>{meal}</span>
-                    </div>
+                    <span>{meal}</span>
                   </button>
                 );
               })}
@@ -485,11 +584,15 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleSendWhatsAppReport}
-                    title="Enviar reporte por WhatsApp"
-                    className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-bold transition flex items-center gap-1.5 text-xs shadow-xs"
+                    onClick={() => setIsWhatsAppModalOpen(true)}
+                    title="Avisos y Reportes de WhatsApp"
+                    className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-bold transition flex items-center gap-1.5 text-xs shadow-xs active:scale-95 border border-emerald-200/50 dark:border-emerald-800/40"
                   >
-                    <Share2 size={15} />
+                    <img
+                      src="/assets/aistudio/whatsapp-3_da26a587.svg"
+                      alt="WhatsApp"
+                      className="w-5 h-5 object-contain shrink-0"
+                    />
                     <span className="hidden sm:inline">WhatsApp</span>
                   </button>
 
@@ -809,9 +912,14 @@ export default function App() {
                                   href={`https://wa.me/${student.phone}`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                                  title="Enviar mensaje de WhatsApp"
+                                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5"
                                 >
-                                  <Phone size={10} />
+                                  <img
+                                    src="/assets/aistudio/whatsapp-3_da26a587.svg"
+                                    alt="WhatsApp"
+                                    className="w-4 h-4 object-contain shrink-0"
+                                  />
                                   <span>{student.phone}</span>
                                 </a>
                               )}
@@ -846,21 +954,18 @@ export default function App() {
                       {/* Meal Days Tag summary */}
                       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
                         <div className="flex items-center gap-1.5">
-                          <Sun size={12} className="text-amber-500" />
                           <span className="font-bold text-slate-500">Desayunos:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {student.breakfastDays?.length ? `${student.breakfastDays.length} días` : 'Ninguno'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Utensils size={12} className="text-indigo-500" />
                           <span className="font-bold text-slate-500">Almuerzos:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {student.lunchDays?.length ? `${student.lunchDays.length} días` : 'Todos'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Moon size={12} className="text-rose-500" />
                           <span className="font-bold text-slate-500">Cenas:</span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {student.dinnerDays?.length ? `${student.dinnerDays.length} días` : 'Ninguna'}
@@ -930,7 +1035,7 @@ export default function App() {
                   Object.keys(attendanceRecords)
                     .sort((a, b) => b.localeCompare(a))
                     .map(dateKey => {
-                      const dayData = attendanceRecords[dateKey] || {};
+                      const dayData = attendanceRecords[dateKey] || { Desayuno: {}, Almuerzo: {}, Cena: {} };
                       const dCount = Object.keys(dayData.Desayuno || {}).length;
                       const aCount = Object.keys(dayData.Almuerzo || {}).length;
                       const cCount = Object.keys(dayData.Cena || {}).length;
@@ -950,14 +1055,14 @@ export default function App() {
                               {formatDateDisplay(dateKey)}
                             </span>
                             <div className="flex gap-3 text-[11px] mt-1 text-slate-500">
-                              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold">
-                                <Sun size={11} /> {dCount} Desayunos
+                              <span className="text-amber-600 dark:text-amber-400 font-bold">
+                                {dCount} Desayunos
                               </span>
-                              <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
-                                <Utensils size={11} /> {aCount} Almuerzos
+                              <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                                {aCount} Almuerzos
                               </span>
-                              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold">
-                                <Moon size={11} /> {cCount} Cenas
+                              <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                {cCount} Cenas
                               </span>
                             </div>
                           </div>
@@ -1070,165 +1175,60 @@ export default function App() {
       </nav>
 
       {/* ========================================================================= */}
-      {/* MODAL 1: CONFIRMACIÓN PARA DESMARCAR COMIDA ("Sin querer queriendo") */}
+      {/* CONFIRMACIÓN: DESMARCAR A UNA PERSONA */}
       {/* ========================================================================= */}
-      {mealToUnmark && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                  ¿Desmarcar comida?
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Confirmación de seguridad
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-900/40 text-xs text-slate-700 dark:text-slate-300 space-y-1">
-              <p>
-                <strong className="text-slate-900 dark:text-white font-black">
-                  {mealToUnmark.student.student}
-                </strong>{' '}
-                ya estaba registrado como que{' '}
-                <strong className="text-amber-700 dark:text-amber-400">
-                  ya comió su {mealToUnmark.meal}
-                </strong>.
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                ¿Deseas desmarcarlo para que vuelva a figurar como pendiente?
-              </p>
-            </div>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setMealToUnmark(null)}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition"
-              >
-                Mantener Marcado
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmUnmark}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition active:scale-95"
-              >
-                Sí, Desmarcar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!mealToUnmark}
+        title={mealToUnmark ? `¿Desmarcar a ${mealToUnmark.student.student}?` : ''}
+        message={mealToUnmark ? `Volverá a figurar como pendiente en ${mealToUnmark.meal}.` : ''}
+        confirmText="Sí, desmarcar"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmUnmark}
+        onClose={() => setMealToUnmark(null)}
+      />
 
       {/* ========================================================================= */}
-      {/* MODAL 2: CONFIRMACIÓN PARA DESMARCAR A TODOS */}
+      {/* CONFIRMACIÓN: DESMARCAR A TODOS EN LA JORNADA */}
       {/* ========================================================================= */}
-      {showConfirmClearAllMeals && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                  ¿Desmarcar a todos?
-                </h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Jornada de {currentMeal}
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-300">
-              Esta acción desmarcará a todas las personas en {currentMeal}. Todos volverán al estado pendiente.
-            </p>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowConfirmClearAllMeals(false)}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmClearAll}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition active:scale-95"
-              >
-                Sí, Desmarcar Todos
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showConfirmClearAllMeals}
+        title={`¿Desmarcar a todos en ${currentMeal}?`}
+        message="Todos los comensales volverán al estado pendiente."
+        confirmText="Sí, desmarcar todos"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmClearAll}
+        onClose={() => setShowConfirmClearAllMeals(false)}
+      />
 
       {/* ========================================================================= */}
-      {/* MODAL 3: CONFIRMACIÓN PARA ELIMINAR A UNA PERSONA DE LA MEMORIA */}
+      {/* CONFIRMACIÓN: MARCAR A TODOS EN LA JORNADA */}
       {/* ========================================================================= */}
-      {studentToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm shadow-2xl border border-rose-200 dark:border-rose-900/60 p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
-                <Trash2 size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                  ¿Eliminar a {studentToDelete.student}?
-                </h3>
-                <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
-                  Se borrará de la memoria del teléfono
-                </p>
-              </div>
-            </div>
+      <ConfirmModal
+        isOpen={showConfirmMarkAllMeals}
+        title={`¿Marcar a todos en ${currentMeal}?`}
+        message={`Se registrará la comida para los ${studentsAssignedToMeal.length} comensales.`}
+        confirmText="Sí, marcar todos"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmMarkAll}
+        onClose={() => setShowConfirmMarkAllMeals(false)}
+      />
 
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-medium">Rol:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
-                  {studentToDelete.role || 'Estudiante'}
-                </span>
-              </div>
-              {studentToDelete.phone && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">WhatsApp / Teléfono:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {studentToDelete.phone}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              Esta acción eliminará de forma definitiva a esta persona de la lista de comensales y de los registros guardados en este dispositivo.
-            </p>
-
-            <div className="flex gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setStudentToDelete(null)}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeleteStudent(studentToDelete.id)}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 transition active:scale-95 flex items-center justify-center gap-1.5"
-              >
-                <Trash2 size={14} />
-                <span>Sí, Eliminar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ========================================================================= */}
+      {/* CONFIRMACIÓN: ELIMINAR A UNA PERSONA DE LA MEMORIA */}
+      {/* ========================================================================= */}
+      <ConfirmModal
+        isOpen={!!studentToDelete}
+        title={studentToDelete ? `¿Eliminar a ${studentToDelete.student}?` : ''}
+        message="Se borrará definitivamente de la lista de comensales y de la memoria del teléfono."
+        confirmText="Sí, eliminar"
+        cancelText="Cancelar"
+        onConfirm={() => {
+          if (studentToDelete) {
+            handleDeleteStudent(studentToDelete.id);
+          }
+        }}
+        onClose={() => setStudentToDelete(null)}
+      />
 
       {/* ========================================================================= */}
       {/* MODAL 4: FORMULARIO AGREGAR / EDITAR COMENSAL */}
@@ -1255,6 +1255,40 @@ export default function App() {
           setStudents(newStudents);
         }}
       />
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: AVISOS & REPORTE PARA WHATSAPP */}
+      {/* ========================================================================= */}
+      <WhatsAppShareModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        currentMeal={currentMeal}
+        selectedDate={selectedDate}
+        formatDateDisplay={formatDateDisplay}
+        studentsAssignedToMeal={studentsAssignedToMeal}
+        currentMealStatus={currentMealStatus}
+        groupLink={whatsappGroupLink}
+        onSaveGroupLink={handleSaveWhatsAppGroupLink}
+        onToast={showToast}
+      />
+
+      {/* ========================================================================= */}
+      {/* TOAST NOTIFICATION */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 px-5 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2.5 border border-slate-700/50 dark:border-slate-200 backdrop-blur-md max-w-sm pointer-events-none"
+          >
+            <CheckCircle2 size={16} className="text-emerald-400 dark:text-emerald-600 shrink-0" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
