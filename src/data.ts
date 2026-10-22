@@ -8,6 +8,7 @@ export interface Subject {
 export type PensionStatus = 'active' | 'pending' | 'paid' | 'none';
 export type PensionPlan = 'completa' | 'solo_almuerzo' | 'desayuno_almuerzo' | 'personalizado' | 'sin_pension';
 export type PersonRole = 'Estudiante' | 'Trabajador' | 'Docente' | 'Residente' | 'Invitado' | 'Otro';
+export type MealType = 'Desayuno' | 'Almuerzo' | 'Cena';
 
 export interface Student {
   id: string;

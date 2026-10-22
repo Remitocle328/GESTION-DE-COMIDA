@@ -24,7 +24,7 @@ import {
   X,
   FileSpreadsheet
 } from 'lucide-react';
-import { Student, PersonRole } from './data';
+import { Student, PersonRole, MealType } from './data';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { StudentFormModal } from './components/StudentFormModal';
@@ -35,7 +35,6 @@ import {
   getStorageMemoryStats
 } from './services/storage';
 
-export type MealType = 'Desayuno' | 'Almuerzo' | 'Cena';
 type View = 'meals' | 'students' | 'history';
 
 const DAYS_ES = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
@@ -78,7 +77,6 @@ export default function App() {
       const stored = localStorage.getItem('meal_attendance_daily_v1');
       if (stored) return JSON.parse(stored);
 
-      // Legacy fallback: migrate 'meal_status_v2' if present
       const legacy = localStorage.getItem('meal_status_v2');
       const today = new Date().toISOString().split('T')[0];
       if (legacy) {
@@ -99,6 +97,28 @@ export default function App() {
       console.error('Error saving meal attendance:', e);
     }
   }, [attendanceRecords]);
+
+  // Auto-refresh date and meal when resuming app or crossing midnight
+  useEffect(() => {
+    const handleVisibilityOrFocus = () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const hour = new Date().getHours();
+      const currentAutoMeal: MealType = hour < 11 ? 'Desayuno' : hour < 17 ? 'Almuerzo' : 'Cena';
+
+      setSelectedDate(prev => {
+        // If the day advanced, automatically update to today's date
+        return prev < todayStr ? todayStr : prev;
+      });
+      setCurrentMeal(currentAutoMeal);
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    };
+  }, []);
 
   // Students list
   const [students, setStudents] = useState<Student[]>(() => loadStudentsFromStorage());
@@ -133,7 +153,6 @@ export default function App() {
     return students.filter(student => {
       if (currentMeal === 'Desayuno') {
         const days = student.breakfastDays || [];
-        // If not explicitly set, show all to avoid omitting comensales
         return days.length === 0 || days.includes(selectedDayName);
       }
       if (currentMeal === 'Almuerzo') {
@@ -178,7 +197,7 @@ export default function App() {
     const alreadyEaten = !!currentMealStatus[student.id];
 
     if (alreadyEaten) {
-      // Prompt safety confirmation dialog to prevent accidental unmarking ("sin querer queriendo")
+      // Prompt safety confirmation dialog to prevent accidental unmarking
       setMealToUnmark({ student, meal: currentMeal });
     } else {
       // Mark as eaten immediately
@@ -305,7 +324,7 @@ export default function App() {
     const eatenList = studentsAssignedToMeal.filter(s => !!currentMealStatus[s.id]);
     const pendingList = studentsAssignedToMeal.filter(s => !currentMealStatus[s.id]);
 
-    let text = `*REPORTE DE ASISTENCIA AL COMEDOR*\n`;
+    let text = `*🍽️ REPORTE DE ASISTENCIA AL COMEDOR*\n`;
     text += `*Jornada:* ${currentMeal.toUpperCase()}\n`;
     text += `*Fecha:* ${dateFormatted}\n\n`;
     text += `*Total Comensales:* ${studentsAssignedToMeal.length}\n`;
@@ -358,7 +377,7 @@ export default function App() {
                 Control de Comedor
               </h1>
               <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
-                Desayuno, Almuerzo y Cena
+                Gestor Diario PWA
               </p>
             </div>
           </div>
@@ -366,9 +385,10 @@ export default function App() {
           <div className="flex items-center gap-2">
             <PWAInstallButton />
             <button
+              type="button"
               onClick={() => setIsBackupModalOpen(true)}
-              title="Memoria & Copia de seguridad"
-              className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              title="Respaldo y memoria local"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
             >
               <HardDrive size={18} />
             </button>
@@ -377,9 +397,9 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-2xl w-full mx-auto p-4 pb-28 space-y-4">
+      <main className="flex-1 max-w-2xl w-full mx-auto p-4 pb-24 space-y-4">
         {/* ========================================================================= */}
-        {/* VIEW 1: CONTROL DE COMIDAS (MAIN) */}
+        {/* VIEW 1: CONTROL DE COMIDAS (HOY / FECHA SELECCIONADA) */}
         {/* ========================================================================= */}
         {currentView === 'meals' && (
           <motion.div
@@ -387,31 +407,20 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
-            {/* Date Selector Banner */}
-            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-                  <CalendarIcon size={18} />
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
-                    Fecha de Asistencia
-                  </span>
-                  <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100">
-                    {formatDateDisplay(selectedDate)}
-                  </span>
-                </div>
+            {/* Date Selector Bar */}
+            <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <CalendarIcon size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="font-black text-slate-900 dark:text-slate-100">
+                  {formatDateDisplay(selectedDate)}
+                </span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={setToday}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition ${
-                    selectedDate === new Date().toISOString().split('T')[0]
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
+                  className="px-2.5 py-1.5 rounded-xl font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition"
                 >
                   Hoy
                 </button>

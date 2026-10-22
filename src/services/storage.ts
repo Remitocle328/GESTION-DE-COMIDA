@@ -123,6 +123,7 @@ export function resetStorageToDefaults(): Student[] {
   try {
     localStorage.removeItem('meal_attendance_daily_v1');
     localStorage.removeItem('meal_status_v2');
+    localStorage.removeItem('meal_absence_notices_v1');
   } catch (e) {
     console.error(e);
   }

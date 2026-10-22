@@ -62,7 +62,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     const defaults = resetStorageToDefaults();
     onDataUpdated(defaults);
     setShowResetConfirm(false);
-    setSuccessMessage('Datos restablecidos a la plantilla inicial.');
+    setSuccessMessage('Memoria local vaciada exitosamente.');
     setTimeout(() => setSuccessMessage(null), 4000);
   };
 
